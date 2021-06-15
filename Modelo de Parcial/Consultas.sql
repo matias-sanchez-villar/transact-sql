@@ -11,15 +11,17 @@ after insert as
 begin
 	begin try
 		begin transaction
-			declare @ID bigint, @DNI varchar(10), @ImporteActual money, @ImportesAnteriores money
+			declare @ID bigint, @DNI varchar(10), @Ganancias money, @ImportesAnteriores money
 			
 			set @ImportesAnteriores = 0
 			
-			select @ID = ID, @DNI = DNI, @ImporteActual = Importe from inserted
+			select @ID = ID, @DNI = DNI from inserted
 			
 			select @ImportesAnteriores = isnull(sum(Importe), 0) from Creditos where @DNI like DNI and Cancelado = 0
 
-			if (@ImporteActual * 3) > @ImportesAnteriores
+			select @Ganancias = p.DeclaracionGanancias from Personas p where p.DNI = @DNI 
+
+			if (@Ganancias * 3) > @ImportesAnteriores
 			begin
 				rollback transaction
 				raiserror('Error monto de credito superior', 16, 2)
