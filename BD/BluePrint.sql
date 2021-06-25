@@ -1,96 +1,107 @@
-create database BluePrint
-go
-use Blueprint
-go
-create Table TipoClientes(
-	ID int primary key identity(1,1) not null,
-	Tipo varchar(50) not null
+CREATE DATABASE BluePrint
+GO
+
+USE BluePrint
+GO
+
+CREATE TABLE TiposCliente(
+	ID Smallint primary key identity (1,1) not null,
+	Nombre varchar(40) not null
 )
-go
-create table Clientes(
-	ID int primary key identity(1,1) not null,
-	RazonSocial varchar(50) not null,
-	cuit varchar(11) unique not null,
-	IDtipoCliente int foreign key references TipoClientes(ID) not null,
-	Email varchar(50) null,
-	Telefono varchar(13) null,
-	Celular varchar(13) null,
+
+GO
+
+CREATE TABLE Clientes(
+	ID smallint primary key identity (1,1)not null,
+	RazonSocial varchar(50) not null unique,
+	CUIT varchar(13) not null unique,
+	EMail varchar(100) null,
+	Telefono varchar(20) null,
+	Celular varchar(20) null,
+	IDTipo smallint not null foreign key references TiposCliente(ID)
 )
-go
-create table Proyectos(
+GO
+
+CREATE TABLE Proyectos(
+	ID varchar(5) primary key not null,
+	IDCliente smallint not null foreign key references Clientes(ID),
+	Nombre varchar(100) not null,
+	Descripcion varchar (512) null,
+	CostoEstimado money not null check ( CostoEstimado > 0),
+	FechaInicio Date not null,
+	FechaFin Date null,
+	Estado bit not null default (1)
+)
+GO
+create table Modulos(
 	ID int primary key identity(1,1) not null,
-	IDCliente int foreign key references Clientes(ID) not null,
 	Nombre varchar(50) not null,
 	Descripcion varchar(512) null,
-	FechaInicio date not null,
-	FechaFin date null,
-	Costo money check(Costo>0) not null,
-	Estado bit not null,
-	check (FechaInicio<FechaFin)
-)
-go
-create table Pais(
-	ID int primary key identity(1,1) not null,
-	Pais varchar(50) not null
-)
-go
-create table Ciudad(
-	ID int primary key identity(1,1) not null,
-	IDPais int foreign key references Pais(ID) not null,
-	Ciudad varchar(50) not null
-)
-go
-create table Modulo(
-	ID int primary key identity(1,1) not null,
-	IDProyecto int foreign key references Proyectos(ID) not null,
-	Nombre varchar(50) not null,
-	Descripcion varchar(512) null,
-	Costo money check(Costo>0) not null,
-	HorasEstimadas int check(HorasEstimadas>0) not null,
-	FechaIncio date null,
-	FechaFin date null,
+	CostoEstimado money not null check(CostoEstimado > 0),  
+	TiempoEstimado smallint not null check(TiempoEstimado > 0),
+	FechaInicio date null, 
 	FechaEstimadaFin date null,
-	check(FechaIncio<= FechaFin),
-	check(FechaIncio<= FechaEstimadaFin)
+	FechaFin date null,
+	IDProyecto varchar(5) not null foreign key references Proyectos(ID),
+	Estado bit not null default(1)
 )
-go
-create table Colaborador(
-	ID int primary key identity(1,1) not null,
+
+GO
+ALTER TABLE Modulos add constraint CHK_FechaFin check (FechaFin >= FechaInicio)
+ALTER TABLE Modulos add constraint CHK_FechaEstimadaFin check (FechaEstimadaFin >= FechaInicio)
+
+GO
+CREATE TABLE Paises(
+	ID SMALLINT primary key identity(1,1) not null,
+	Nombre varchar(50) not null
+)
+
+CREATE TABLE Ciudades(
+	ID INT PRIMARY KEY IDENTITY(1,1) NOT NULL, 
+	Nombre VARCHAR(100) NOT NULL,
+	IDPais SMALLINT not null foreign key references Paises(ID)
+)
+
+CREATE TABLE Colaboradores(
+	ID INT PRIMARY KEY IDENTITY(1,1) NOT NULL, 
+	Nombre VARCHAR(100) NOT NULL,
+	Apellido VARCHAR(100) NOT NULL, 
+	FechaNacimiento DATE NOT NULL CHECK(FechaNacimiento < GETDATE()),
+	Tipo CHAR(1) NOT NULL CHECK(Tipo = 'I' OR Tipo = 'E'),
+	Domicilio VARCHAR(250) NULL,
+	IDCiudad INT NULL foreign key references Ciudades(ID),
+	EMail VARCHAR(250) NULL,
+	Celular VARCHAR(50) NULL,
+	CONSTRAINT CHK_EMailCelular CHECK(EMail IS NOT NULL OR Celular IS NOT NULL),
+)
+GO
+ALTER TABLE Clientes
+ADD IDCiudad INT NULL foreign key references Ciudades(ID)
+Go
+Create Table TiposTarea(
+	ID smallint not null primary key identity (1, 1),
 	Nombre varchar(50) not null,
-	Apellido varchar(50) not null,
-	Email varchar(50) null,
-	Celular varchar(13) null,
-	check (Email != null or Celular != null),
-	FechaNacimiento date not null,
-	Domicilio varchar(50) not null,
-	IDCiudad int foreign key references Ciudad(ID) not null,
-	Tipo char(1) check(Tipo='i' or tipo='e')
+	PrecioHoraBase money null
 )
 go
-alter table Clientes
-	ADD IDCiudad int not null foreign key references Ciudad(ID)
-go
-create table TipoTareas(
-	ID int primary key identity(1,1) not null,
-	tipo varchar(50) not null
-)
-go
-create table Tareas(
-	ID int primary key identity(1,1) not null,
-	IDModulo int foreign key references Modulo(ID) not null,
-	IDTipoTare int foreign key references TipoTareas(ID) not null,
+Create Table Tareas(
+	ID int not null primary key identity (1, 1),
+	IDModulo int not null foreign key references Modulos(ID),
+	IDTipo smallint not null foreign key references TiposTarea(ID),
 	FechaInicio date null,
 	FechaFin date null,
-	Estado bit not null,
-	check(FechaInicio<=FechaFin)
+	Estado bit not null default(1)
 )
 go
-create table Colaboracion(
-	IDTarea int foreign key references Tareas(ID) not null,
-	IDColaborador int foreign key references Colaborador(ID) not null,
-	primary key (IDTarea, IDColaborador),
-	CantidadHoras int check(CantidadHoras>0) not null,
-	ValorHora money check(ValorHora>0) not null,
-	Estado bit not null
+Alter Table Tareas
+Add constraint CHK_TareasFechas Check (FechaInicio <= FechaFin)
+go
+Create Table Colaboraciones(
+	IDTarea int not null foreign key references Tareas(ID),
+	IDColaborador int not null foreign key references Colaboradores(ID),
+	Tiempo smallint not null check(Tiempo > 0),
+	PrecioHora money not null check (PrecioHora >= 0),
+	Estado bit not null default(1),
+	primary key (IDTarea, IDColaborador)
 )
 
