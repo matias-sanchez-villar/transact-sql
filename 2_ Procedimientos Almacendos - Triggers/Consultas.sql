@@ -231,3 +231,108 @@ begin
 	end catch
 end
 
+go
+
+/*
+	Hacer un trigger que al borrar una tarea que previamente se ha dado de baja
+	lógica realice la baja física de la misma.
+*/
+
+create trigger DeleteTareas on Tareas
+after delete as
+begin
+	begin try
+		begin transaction
+			declare @ID int
+
+			select @ID = ID from deleted
+
+			update Tareas set Estado = 0 where ID = @ID
+
+		commit transaction
+	end try
+	begin catch
+		rollback transaction
+		raiserror('Error en trigger DeleteTareas',16,2)
+	end catch
+end
+
+go
+
+/*
+	Hacer un trigger que al ingresar una colaboración no permita que el
+	colaborador/a superponga las fechas con las de otras colaboraciones que se
+	les hayan asignado anteriormente. En caso contrario, registrar la colaboración
+	sino generar un error con un mensaje aclaratorio.
+*/
+
+create trigger ColaboracionesFechas on Colaboraciones
+instead of insert as
+begin
+	begin try
+		begin transaction
+			
+			declare @IDColaborador int, @IDTarea int, @FIncio date, @FFin date, @Coincidencias int
+			
+			set @Coincidencias = 0
+
+			select @IDColaborador = IDColaborador, @IDTarea = IDTarea from inserted
+
+			select @FIncio = FechaInicio, @FFin = FechaFin from Tareas
+			where ID = @IDTarea
+
+			select @Coincidencias = count(*) from Colaboraciones C
+			inner join Tareas t on t.ID = C.IDTarea
+			where @FIncio = T.FechaInicio or @FFin =FechaFin
+
+			if @Coincidencias > 0
+			begin
+				raiserror('Fechas de colaboraciones superpuestas', 16, 2)
+			end
+ 
+		commit transaction
+	end try
+	begin catch
+		rollback transaction
+		raiserror('Error en trigger ColaboracionesFechas', 16, 2)
+	end catch
+end
+
+go
+
+/*
+	Hacer un trigger que al modificar el precio hora base de un tipo de tarea
+	registre en una tabla llamada HistorialPreciosTiposTarea el ID, el precio antes
+	de modificarse y la fecha de modificación.
+	NOTA: La tabla debe estar creada previamente. NO crearla dentro del trigger
+*/
+
+create table HistorialPreciosTiposTarea
+(
+	ID smallint primary key identity(1,1) not null,
+	IDTipoTarea smallint foreign key references TiposTarea(ID) not null,
+	Precio money not null,
+	FechaModificacion date not null
+)
+
+go
+
+create trigger PrecioHora on TiposTarea
+after update as
+begin
+	begin try
+		begin transaction
+			
+			declare @IDTiposTarea smallint, @Precio money
+
+			select @IDTiposTarea = ID, @Precio = PrecioHoraBase from deleted
+
+			insert into HistorialPreciosTiposTarea (IDTipoTarea, Precio, FechaModificacion) values (@IDTiposTarea, @Precio, getdate())
+
+		commit transaction
+	end try
+	begin catch
+		rollback transaction
+		raiserror('Error en triger PrecioHora',16,2)
+	end catch
+end
