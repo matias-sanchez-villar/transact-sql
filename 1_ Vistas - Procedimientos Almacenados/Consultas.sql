@@ -8,8 +8,8 @@ go
 	colaboraciones)
 */
 
-create view VW_TipoTarea as
-	select tt.Nombre, tt.PrecioHoraBase, avg(isnull(c.PrecioHora, 0)) as Promedio from TiposTarea tt
+create view vw_tipoTarea as
+	select tt.Nombre, tt.PrecioHoraBase, avg(c.PrecioHora) as promedio from TiposTarea tt
 	inner join Tareas t on t.IDTipo = tt.ID
 	inner join Colaboraciones c on c.IDTarea = t.ID
 	group by tt.Nombre, tt.PrecioHoraBase
@@ -27,17 +27,20 @@ go
 	más.
 */
 
-alter view VW_TipoTarea as
-	select tt.Nombre, tt.PrecioHoraBase,
+alter view vw_tipoTarea as
+	select tn.Nombre, tn.PrecioHoraBase, tn.promedio,
 	case
-		when avg(isnull(c.PrecioHora, 0)) > 500 then 'Poca'
-		when avg(isnull(c.PrecioHora, 0)) <= 501 and avg(isnull(c.PrecioHora, 0)) >= 999 then 'Media'
-		else 'Alta'
-	end as Promedio
-	from TiposTarea tt
-	inner join Tareas t on t.IDTipo = tt.ID
-	inner join Colaboraciones c on c.IDTarea = t.ID
-	group by tt.Nombre, tt.PrecioHoraBase
+		when (tn.promedio - tn.PrecioHoraBase) > 500 then 'Poca'
+		when (tn.promedio - tn.PrecioHoraBase) < 500 and (tn.promedio - tn.PrecioHoraBase) > 1000  then 'Mediana'
+		when (tn.promedio - tn.PrecioHoraBase) < 1000 then 'Alta'
+	end as diferencia
+	from 
+	(
+		select tt.Nombre, tt.PrecioHoraBase, avg(c.PrecioHora) as promedio from TiposTarea tt
+		inner join Tareas t on t.IDTipo = tt.ID
+		inner join Colaboraciones c on c.IDTarea = t.ID
+		group by tt.Nombre, tt.PrecioHoraBase
+	) as tn
 
 go
 
