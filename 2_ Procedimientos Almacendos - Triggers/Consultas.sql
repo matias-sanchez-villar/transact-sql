@@ -1,25 +1,26 @@
 /*
-	Hacer un trigger que al ingresar una colaboraci髇 obtenga el precio de la
+	Hacer un trigger que al ingresar una colaboraci贸n obtenga el precio de la
 	misma a partir del precio hora base del tipo de tarea. Tener en cuenta que si el
-	colaborador es externo el costo debe ser un 20% m醩 caro.
+	colaborador es externo el costo debe ser un 20% m谩s caro.
 */
 
-create trigger TR_NuevaColaboracion on Colaboraciones
+create trigger tr_punto1 on Colaboraciones
 after insert as
-	begin
+begin
 	begin try
 		begin transaction
-			declare @IDColaborador int, @IDTarea int, @PrecioHora money, @TipoColaborador char
-			select @IDColaborador = c.IDColaborador, @IDTarea = c.IDTarea from Colaboraciones c
 			
-			select @PrecioHora = tt.PrecioHoraBase from TiposTarea tt
-			inner join Tareas t on t.IDTipo = tt.ID
+			declare @IDColaborador int, @IDTarea int, @PrecioHora money, @Tipo char
+			select @IDColaborador = IDColaborador, @IDTarea = IDTarea from inserted
+
+			select @PrecioHora = tt.PrecioHoraBase from Tareas t
+			inner join TiposTarea tt on tt.ID = t.IDTipo
 			where t.ID = @IDTarea
 
-			select @TipoColaborador = cc.Tipo from Colaboradores cc
-			where cc.ID = @IDColaborador
+			select @Tipo = c.Tipo from Colaboradores c
+			where c.ID = @IDColaborador
 
-			if @TipoColaborador = 'E'
+			if @Tipo like '%E%'
 			begin
 				set @PrecioHora = @PrecioHora * 1.2
 			end
@@ -30,14 +31,14 @@ after insert as
 	end try
 	begin catch
 		rollback transaction
-		raiserror('No se pudo ejecutar la consulta', 16, 10)
+		raiserror('Error en el trigger tr_punto1', 15, 10)
 	end catch
 end
 
 go
 
 /*
-	Hacer un trigger que no permita que un colaborador registre m醩 de 15 tareas
+	Hacer un trigger que no permita que un colaborador registre m谩s de 15 tareas
 	en un mismo mes. De lo contrario generar un error con un mensaje aclaratorio.
 */
 
@@ -70,8 +71,8 @@ go
 
 /*
 	Hacer un trigger que al ingresar una tarea cuyo tipo contenga el nombre
-	'Programaci髇' se agreguen autom醫icamente dos tareas de tipo 'Testing
-	unitario' y 'Testing de integraci髇' de 4 horas cada una. La fecha de inicio y fin
+	'Programaci贸n' se agreguen autom谩ticamente dos tareas de tipo 'Testing
+	unitario' y 'Testing de integraci贸n' de 4 horas cada una. La fecha de inicio y fin
 	de las mismas debe ser NULL. Calcular el costo estimado de la tarea.
 */
 
@@ -87,12 +88,12 @@ begin
 			select @Nombre = Nombre from TiposTarea where @IDTipo = ID
 
 			select @IDti = ID from TiposTarea
-			where Nombre = 'Testing de integraci髇'
+			where Nombre = 'Testing de integraci贸n'
 
 			select @IDtu = ID from TiposTarea
 			where Nombre = 'Testing unitario'
 
-			if @Nombre like '%Programaci髇%'
+			if @Nombre like '%Programaci贸n%'
 			begin
 			
 				insert into Tareas(IDModulo, IDTipo, Estado) VALUES (@IDModulo, @IDti, 1)
@@ -111,8 +112,8 @@ end
 go
 
 /*
-	Hacer un trigger que al borrar una tarea realice una baja l骻ica de la misma en
-	lugar de una baja f韘ica.
+	Hacer un trigger que al borrar una tarea realice una baja l贸gica de la misma en
+	lugar de una baja f铆sica.
 */
 
 create trigger BajaLogicaTareas on Tareas
@@ -138,9 +139,9 @@ end
 go
 
 /*
-	Hacer un trigger que al borrar un m骴ulo realice una baja l骻ica del mismo en
-	lugar de una baja f韘ica. Adem醩, debe borrar todas las tareas asociadas al
-	m骴ulo
+	Hacer un trigger que al borrar un m贸dulo realice una baja l贸gica del mismo en
+	lugar de una baja f铆sica. Adem谩s, debe borrar todas las tareas asociadas al
+	m贸dulo
 */
 
 create trigger BajoLogicaModulo on Modulos
@@ -168,8 +169,8 @@ end
 go
 
 /*
-	Hacer un trigger que al borrar un proyecto realice una baja l骻ica del mismo
-	en lugar de una baja f韘ica. Adem醩, debe borrar todas los m骴ulos asociados
+	Hacer un trigger que al borrar un proyecto realice una baja l贸gica del mismo
+	en lugar de una baja f铆sica. Adem谩s, debe borrar todas los m贸dulos asociados
 	al proyecto.
 */
 
@@ -199,8 +200,8 @@ go
 
 /*
 	Hacer un trigger que si se agrega una tarea cuya fecha de fin es mayor a la
-	fecha estimada de fin del m骴ulo asociado a la tarea entonces se modifique
-	la fecha estimada de fin en el m骴ulo.
+	fecha estimada de fin del m贸dulo asociado a la tarea entonces se modifique
+	la fecha estimada de fin en el m贸dulo.
 */
 
 create trigger ModificarFechaEstimadaFin on tareas
@@ -235,7 +236,7 @@ go
 
 /*
 	Hacer un trigger que al borrar una tarea que previamente se ha dado de baja
-	l骻ica realice la baja f韘ica de la misma.
+	l贸gica realice la baja f铆sica de la misma.
 */
 
 create trigger DeleteTareas on Tareas
@@ -260,9 +261,9 @@ end
 go
 
 /*
-	Hacer un trigger que al ingresar una colaboraci髇 no permita que el
+	Hacer un trigger que al ingresar una colaboraci贸n no permita que el
 	colaborador/a superponga las fechas con las de otras colaboraciones que se
-	les hayan asignado anteriormente. En caso contrario, registrar la colaboraci髇
+	les hayan asignado anteriormente. En caso contrario, registrar la colaboraci贸n
 	sino generar un error con un mensaje aclaratorio.
 */
 
@@ -303,7 +304,7 @@ go
 /*
 	Hacer un trigger que al modificar el precio hora base de un tipo de tarea
 	registre en una tabla llamada HistorialPreciosTiposTarea el ID, el precio antes
-	de modificarse y la fecha de modificaci髇.
+	de modificarse y la fecha de modificaci贸n.
 	NOTA: La tabla debe estar creada previamente. NO crearla dentro del trigger
 */
 
