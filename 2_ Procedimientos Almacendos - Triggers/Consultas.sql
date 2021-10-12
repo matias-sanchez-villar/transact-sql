@@ -42,28 +42,28 @@ go
 	en un mismo mes. De lo contrario generar un error con un mensaje aclaratorio.
 */
 
-create trigger TR_Tareas on Colaboraciones
+create trigger tr_Punto2 on colaboraciones
 after insert as
 begin
 	begin try
 		begin transaction
-			declare @IDColaborador int, @CantColaboraciones int
+			
+			declare @IDTarea int, @Cantidad int
+			select @IDTarea = IDTarea from inserted
 
-			select @IDColaborador = IDColaborador from inserted
+			select @Cantidad = COUNT(t.ID) from Tareas t
+			where t.ID = @IDTarea and month(t.FechaInicio) = month(getdate())
 
-			select @CantColaboraciones = count(*) from Colaboraciones
-			where @IDColaborador = IDColaborador and MONTH(Tiempo) = MONTH(GETDATE()) and year(Tiempo) = year(GETDATE())
-				
-			if @CantColaboraciones >= 15
+			if @Cantidad > 15
 			begin
-				raiserror('Error tienes mas de 15 colaboraciones en este mes', 16, 10)
+				raiserror('Tiene mas de 15 colaboraciones en este mes', 15, 10)
 			end
 
 		commit transaction
 	end try
 	begin catch
 		rollback transaction
-		raiserror('Error intente nuevamente', 16, 10)
+		raiserror('Error trigger tr_punto2', 15, 10)
 	end catch
 end
 
@@ -156,43 +156,13 @@ begin
 
 			update Modulos set Estado = 0 where ID = @ID
 
-			delete from Tareas where IDModulo = @ID
+			update Tareas set Estado = 0 where IDModulo = @ID
 			
 		commit transaction
 	end try
 	begin catch
 		rollback transaction
 		raiserror('Error en trigger BajaLogicaModulos',16,2)
-	end catch
-end
-
-go
-
-/*
-	Hacer un trigger que al borrar un proyecto realice una baja lógica del mismo
-	en lugar de una baja física. Además, debe borrar todas los módulos asociados
-	al proyecto.
-*/
-
-create trigger BajaLogicaProyectos on Proyectos
-instead of delete as
-begin
-	begin try
-		begin transaction
-			
-			declare @ID int
-
-			select @ID = ID from deleted
-
-			update Proyectos set Estado = 0 where ID = @ID
-
-			delete Modulos where IDProyecto = @ID
-
-		commit transaction
-	end try
-	begin catch
-		rollback transaction
-		raiserror('Error trigger BajaLogicaProyectos',16,2)
 	end catch
 end
 
@@ -267,35 +237,33 @@ go
 	sino generar un error con un mensaje aclaratorio.
 */
 
-create trigger ColaboracionesFechas on Colaboraciones
-instead of insert as
+create trigger tr_punto9 on colaboraciones
+after insert as
 begin
 	begin try
 		begin transaction
-			
-			declare @IDColaborador int, @IDTarea int, @FIncio date, @FFin date, @Coincidencias int
-			
-			set @Coincidencias = 0
 
-			select @IDColaborador = IDColaborador, @IDTarea = IDTarea from inserted
+			declare @IDColaborador int, @IDTare int, @fechaIncio date, @FechaFin date, @cont int
+			set @cont = 0
+			select @IDColaborador = IDColaborador, @IDTare = @IDTare from inserted
 
-			select @FIncio = FechaInicio, @FFin = FechaFin from Tareas
-			where ID = @IDTarea
+			select @fechaIncio = FechaInicio, @FechaFin = FechaFin from Tareas t
+			where t.ID = @IDTare
 
-			select @Coincidencias = count(*) from Colaboraciones C
-			inner join Tareas t on t.ID = C.IDTarea
-			where @FIncio = T.FechaInicio or @FFin =FechaFin
+			select @cont = COUNT(t.ID) from Colaboraciones c
+			inner join Tareas t on t.ID = c.IDTarea
+			where c.IDColaborador = @IDColaborador and t.FechaInicio >= @fechaIncio and t.FechaFin <= @fechaIncio
 
-			if @Coincidencias > 0
+			if @cont != 0
 			begin
 				raiserror('Fechas de colaboraciones superpuestas', 16, 2)
 			end
- 
+
 		commit transaction
 	end try
 	begin catch
 		rollback transaction
-		raiserror('Error en trigger ColaboracionesFechas', 16, 2)
+		raiserror('Error en trigger tr_punto9',16,2)
 	end catch
 end
 
@@ -318,22 +286,27 @@ create table HistorialPreciosTiposTarea
 
 go
 
-create trigger PrecioHora on TiposTarea
+create trigger tr_punto10 on TiposTarea
 after update as
 begin
 	begin try
 		begin transaction
-			
-			declare @IDTiposTarea smallint, @Precio money
 
-			select @IDTiposTarea = ID, @Precio = PrecioHoraBase from deleted
+			declare @ID int, @precioAnterior money, @PrecioNuevo money
 
-			insert into HistorialPreciosTiposTarea (IDTipoTarea, Precio, FechaModificacion) values (@IDTiposTarea, @Precio, getdate())
+			select @ID = ID, @precioAnterior = PrecioHoraBase from deleted
+
+			select @PrecioNuevo = PrecioHoraBase from inserted
+
+			if @precioAnterior != @PrecioNuevo
+			begin
+				insert into HistorialPreciosTiposTarea (IDTipoTarea, Precio, FechaModificacion) values (@ID, @precioAnterior, getdate())
+			end
 
 		commit transaction
 	end try
 	begin catch
 		rollback transaction
-		raiserror('Error en triger PrecioHora',16,2)
+		raiserror('Error en trigger tr_punto9',16,2)
 	end catch
 end
