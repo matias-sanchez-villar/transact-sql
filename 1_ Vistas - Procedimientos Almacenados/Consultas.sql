@@ -56,7 +56,7 @@ create procedure SP_ListaColaboraciones
 as
 begin
 	begin try
-		if @ID >0
+		if @ID < 0
 			begin
 				select * from Colaboraciones c
 				where c.IDColaborador = @ID
@@ -107,15 +107,17 @@ create procedure SP_ListProyectSetDate
 as
 begin
 	begin try
-		if @Date1 > @Date2
-		begin
-			select * from Proyectos p
-			where p.FechaInicio >= @Date1 and p.FechaFin <= @Date2
-		end
-		else
-		begin
-			raiserror('La segunda fecha es menor que la primera', 15, 10)
-		end
+		begin transaction
+			if @Inicio < @Fin
+			begin
+				select * from Proyectos p
+				where p.FechaInicio >= @Inicio and p.FechaFin <= @Fin
+			end
+			else begin
+				select * from Proyectos p
+				where p.FechaInicio >= @Fin and p.FechaFin <= @Inicio
+			end
+		commit transaction
 	end try
 	begin catch
 		raiserror('Error con las fechas', 15, 10)
@@ -185,7 +187,7 @@ begin
 				where ID = @ID
 			update Tareas
 				set Estado = 0
-				where FechaInicio > GETDATE() and IDModulo = @ID
+				where FechaInicio > getdate() and IDModulo = @ID or FechaFin > getdate()
 			commit transaction
 		end
 		else 
